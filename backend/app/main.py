@@ -1,18 +1,20 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
+from app.core.database import init_database
 from app.api.v1.router import api_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup actions
-    print(f"🚀 Starting {settings.APP_NAME} in {settings.ENVIRONMENT} mode...")
+    await run_in_threadpool(init_database)
+    print(f"Starting {settings.APP_NAME} in {settings.ENVIRONMENT} mode...")
     yield
     # Shutdown actions
-    print(f"🛑 Shutting down {settings.APP_NAME}...")
+    print(f"Shutting down {settings.APP_NAME}...")
 
 
 app = FastAPI(

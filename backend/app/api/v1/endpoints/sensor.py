@@ -1,5 +1,6 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
+from starlette.concurrency import run_in_threadpool
 from app.schemas.sensor import SensorReading, SensorReadingResponse
 from app.services.sensor_service import SensorService
 
@@ -14,7 +15,7 @@ router = APIRouter()
 )
 async def receive_sensor_data(reading: SensorReading):
     """Receive and store sensor telemetry from IoT devices (e.g. ESP32, Raspberry Pi)."""
-    saved = SensorService.add_reading(reading)
+    saved = await run_in_threadpool(SensorService.add_reading, reading)
     return SensorReadingResponse(
         status="success",
         message="Reading recorded successfully",
@@ -27,9 +28,9 @@ async def receive_sensor_data(reading: SensorReading):
     response_model=List[SensorReading],
     summary="Get All Sensor Readings"
 )
-async def list_sensor_data(limit: int = 50):
+async def list_sensor_data(limit: int = Query(default=50, ge=1, le=1000)):
     """Retrieve recent sensor readings up to limit."""
-    return SensorService.get_recent_readings(limit=limit)
+    return await run_in_threadpool(SensorService.get_recent_readings, limit=limit)
 
 
 @router.get(
@@ -37,9 +38,9 @@ async def list_sensor_data(limit: int = 50):
     response_model=List[SensorReading],
     summary="Get Readings for Specific Sensor"
 )
-async def get_sensor_readings_by_id(sensor_id: str):
+async def get_sensor_readings_by_id(sensor_id: str, limit: int = Query(default=50, ge=1, le=1000)):
     """Filter telemetry by sensor_id."""
-    readings = SensorService.get_by_sensor_id(sensor_id=sensor_id)
+    readings = await run_in_threadpool(SensorService.get_by_sensor_id, sensor_id=sensor_id, limit=limit)
     if not readings:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

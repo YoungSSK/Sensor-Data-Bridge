@@ -15,7 +15,7 @@ flowchart LR
 ```
 
 - **FastAPI trên Render** là API trung gian giữa ESP32, cơ sở dữ liệu và giao diện. ESP32 không kết nối trực tiếp tới Aiven.
-- **Aiven for MySQL** là nơi lưu tài khoản, dự án, thiết bị và dữ liệu đo trong kiến trúc mục tiêu. Cơ sở dữ liệu hiện **chưa được tích hợp vào mã nguồn**.
+- **Aiven for MySQL** hiện lưu các số đo cảm biến. Bảng cho tài khoản, dự án và thiết bị là phần phát triển tiếp theo.
 - **React + Vite** cung cấp dashboard thử nghiệm. Trong bản hiện tại, giao diện làm mới dữ liệu bằng cách gọi API mỗi 5 giây.
 - Giao thức ưu tiên cho ESP32 ở giai đoạn đầu là HTTP/HTTPS. Thư viện Arduino cho ESP32, xử lý retry/chống trùng và firmware Pepper Nursery là các phần cần phát triển tiếp.
 
@@ -28,7 +28,7 @@ MVP đầu tiên tập trung vào một luồng khép kín: người dùng đăn
 | Hạng mục | Hiện có trong repository | Mục tiêu MVP |
 | --- | --- | --- |
 | API FastAPI | Health check; nhận và đọc số đo đơn lẻ | API cho tài khoản, dự án, thiết bị và dữ liệu đo |
-| Lưu trữ | Danh sách trong RAM; mất khi tiến trình khởi động lại | Lưu bền vững trên Aiven for MySQL |
+| Lưu trữ | Số đo được ghi vào bảng `sensor_readings` trên Aiven for MySQL | Bổ sung migration và mô hình dữ liệu dự án/thiết bị |
 | Đăng ký/đăng nhập | Chưa có | Nhập email để thử nghiệm; chưa xác minh Google/email |
 | Bảo vệ API | Chưa có khóa thiết bị hay phân quyền | Khóa riêng cho thiết bị, giới hạn dữ liệu theo chủ sở hữu |
 | Dashboard | Xem số đo và gửi mẫu mô phỏng | Quản lý thiết bị, xem số đo mới nhất/lịch sử cơ bản |
@@ -44,9 +44,9 @@ Các tính năng như biểu đồ nâng cao, CSV, SSE, tổng hợp dữ liệu
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/endpoints/   # Health và sensor readings
-│   │   ├── core/config.py      # Cấu hình ứng dụng, CORS
+│   │   ├── core/               # Cấu hình và kết nối MySQL
 │   │   ├── schemas/sensor.py   # Cấu trúc số đo hiện tại
-│   │   ├── services/           # Lưu số đo tạm trong RAM
+│   │   ├── services/           # Ghi/đọc số đo trong MySQL
 │   │   └── main.py             # FastAPI app
 │   ├── tests/                  # Kiểm thử API cơ bản
 │   ├── .env.example
@@ -61,14 +61,14 @@ Các tính năng như biểu đồ nâng cao, CSV, SSE, tổng hợp dữ liệu
 
 ## Chạy bản hiện tại trên máy cá nhân
 
-Ví dụ dưới đây dùng **PowerShell** từ thư mục gốc của repository. Cần Python 3.12 và Node.js 22 (phiên bản đang dùng trong CI), cùng npm. Chạy backend và frontend ở hai terminal riêng.
+Ví dụ dưới đây dùng **PowerShell** từ thư mục gốc của repository. Cần Python 3.12 hoặc 3.13 (CI dùng 3.12; máy phát triển này đã thử với 3.13), Node.js 22 và npm. Chạy backend và frontend ở hai terminal riêng.
 
 ### 1. Backend
 
 ```powershell
-py -3.12 -m venv backend\.venv
+py -3.13 -m venv backend\.venv
 .\backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
-Copy-Item backend\.env.example backend\.env
+if (-not (Test-Path backend\.env)) { Copy-Item backend\.env.example backend\.env }
 Set-Location backend
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
@@ -79,7 +79,7 @@ Các địa chỉ sau sẽ khả dụng khi backend chạy:
 - Kiểm tra tiến trình: `http://127.0.0.1:8000/api/v1/health`
 - Tài liệu API tương tác: `http://127.0.0.1:8000/docs`
 
-`/health` hiện chỉ báo tiến trình FastAPI đang chạy; nó **chưa kiểm tra kết nối Aiven**. Biến môi trường được mã nguồn hiện tại đọc là `APP_NAME`, `ENVIRONMENT`, `DEBUG`, `HOST`, `PORT` và `BACKEND_CORS_ORIGINS` (xem `backend/.env.example`). `HOST`/`PORT` trong tệp cấu hình không tự thay thế tham số `--host`/`--port` của lệnh Uvicorn.
+Trước khi chạy, điền `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD` và `MYSQL_SSL_CA` trong `backend/.env`. `MYSQL_SSL_CA` phải trỏ tới tệp CA của dự án Aiven; đường dẫn tương đối được tính từ thư mục `backend`. Backend xác minh cả chứng chỉ và tên máy chủ. Lúc khởi động, ứng dụng chạy `CREATE TABLE IF NOT EXISTS` cho bảng `sensor_readings`, nên tài khoản MySQL cần quyền `CREATE` khi khởi động. `/health` trả `503` nếu không kết nối được DB. Các biến khác gồm `APP_NAME`, `ENVIRONMENT`, `HOST`, `PORT` và `BACKEND_CORS_ORIGINS` (xem `backend/.env.example`). `HOST`/`PORT` trong tệp cấu hình không tự thay thế tham số `--host`/`--port` của lệnh Uvicorn.
 
 ### 2. Frontend
 
@@ -121,21 +121,21 @@ Tất cả endpoint dưới đây đều chưa yêu cầu đăng nhập hoặc k
 | Phương thức | Đường dẫn | Tác dụng |
 | --- | --- | --- |
 | `GET` | `/` | Thông tin ứng dụng và đường dẫn tài liệu |
-| `GET` | `/api/v1/health` | Trạng thái tiến trình FastAPI |
+| `GET` | `/api/v1/health` | Kiểm tra kết nối MySQL; trả `503` khi DB không khả dụng |
 | `POST` | `/api/v1/sensors/readings` | Nhận một số đo, trả `201` |
-| `GET` | `/api/v1/sensors/readings?limit=50` | Đọc các số đo gần đây |
-| `GET` | `/api/v1/sensors/readings/{sensor_id}` | Đọc theo sensor ID; trả `404` nếu chưa có dữ liệu |
+| `GET` | `/api/v1/sensors/readings?limit=50` | Đọc các số đo gần đây; `limit` từ 1 đến 1000 |
+| `GET` | `/api/v1/sensors/readings/{sensor_id}?limit=50` | Đọc theo sensor ID; trả `404` nếu chưa có dữ liệu |
 
-API đăng ký/đăng nhập, cấp khóa thiết bị, dự án, truy vấn lịch sử bền vững và các endpoint telemetry mở rộng **chưa được triển khai**. Khi thiết kế hợp đồng mới, cần thống nhất với cả firmware và dashboard trước khi thay đổi payload đang dùng.
+API đăng ký/đăng nhập, cấp khóa thiết bị, dự án, phân trang lịch sử và các endpoint telemetry mở rộng **chưa được triển khai**. Khi thiết kế hợp đồng mới, cần thống nhất với cả firmware và dashboard trước khi thay đổi payload đang dùng.
 
 ## Triển khai mục tiêu với Render và Aiven
 
 1. **Backend trên Render:** tạo Web Service từ repository, đặt **Root Directory** là `backend`, Build Command là `pip install -r requirements.txt`, Start Command là `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Render hướng dẫn dùng `$PORT` và lắng nghe trên `0.0.0.0` cho Web Service. [Tài liệu Render về FastAPI](https://render.com/docs/deploy-fastapi), [Root Directory cho repository nhiều ứng dụng](https://render.com/docs/your-first-deploy).
-2. **Cơ sở dữ liệu trên Aiven:** tạo dịch vụ Aiven for MySQL, lấy thông tin host, port, tên database, user và mật khẩu từ dịch vụ; tích hợp driver MySQL và migration vào backend, sau đó cấu hình bí mật qua biến môi trường của dịch vụ Render. Kết nối DB bằng TLS theo cấu hình được chọn. **Hiện backend chưa có driver, biến môi trường DB, migration hoặc mã kết nối Aiven**, vì vậy chỉ tạo dịch vụ Aiven chưa làm dữ liệu được lưu vào đó. [Hướng dẫn kết nối Python của Aiven](https://aiven.io/docs/products/mysql/howto/connect-with-python), [tài liệu TLS của Aiven](https://aiven.io/docs/platform/concepts/tls-ssl-certificates).
+2. **Cơ sở dữ liệu trên Aiven:** cấu hình sáu biến `MYSQL_*` trên Render và bảo đảm tệp CA có tại vị trí `MYSQL_SSL_CA` trong bản triển khai. Mã hiện dùng PyMySQL, bắt buộc xác minh TLS và tự tạo bảng `sensor_readings` khi khởi động. Chưa có migration quản lý thay đổi schema. [Hướng dẫn kết nối Python của Aiven](https://aiven.io/docs/products/mysql/howto/connect-with-python), [tài liệu TLS của Aiven](https://aiven.io/docs/platform/concepts/tls-ssl-certificates).
 3. **Frontend:** khi triển khai riêng, đặt `VITE_API_BASE_URL` thành `https://<dia-chi-backend>/api/v1` tại thời điểm build và thêm origin của frontend vào `BACKEND_CORS_ORIGINS`. Các biến `VITE_` đi vào mã chạy trên trình duyệt, nên không đặt thông tin Aiven hoặc khóa bí mật tại đây.
-4. **Trước khi dùng dữ liệu thật:** hoàn thiện đăng nhập, phân quyền, khóa thiết bị, lưu trữ bền vững, kiểm tra health với DB và kiểm thử gửi/đọc sau khi backend khởi động lại. Bản hiện tại ghi RAM và công khai API; khởi động lại hoặc tạo nhiều instance sẽ không cho một kho dữ liệu chung.
+4. **Trước khi mở truy cập rộng:** hoàn thiện đăng nhập, phân quyền, khóa thiết bị, migration và sao lưu. API hiện vẫn công khai thao tác gửi/đọc số đo.
 
-Thông tin kết nối Aiven, token và khóa thiết bị chỉ lưu trong môi trường chạy hoặc tệp `.env` cục bộ; không commit vào Git. Các tên biến DB và quy trình migration sẽ được tài liệu hóa khi phần tích hợp được viết.
+Thông tin kết nối Aiven, token và khóa thiết bị chỉ lưu trong môi trường chạy hoặc tệp `.env` cục bộ; không commit vào Git. Tệp CA là chứng chỉ công khai nhưng phải có trên môi trường triển khai. Các thay đổi schema tiếp theo cần được quản lý bằng migration.
 
 ## Kiểm tra chất lượng
 
@@ -157,7 +157,7 @@ GitHub Actions hiện chạy kiểm thử backend và build frontend trên các 
 ## Các bước phát triển tiếp theo
 
 1. Chốt hợp đồng dữ liệu giữa ESP32, FastAPI và dashboard; xác định cách gửi nhiều chỉ số trong một bản tin, timestamp và mã chống trùng.
-2. Tích hợp Aiven for MySQL với migration, lưu thiết bị và số đo bền vững; cập nhật health check để phản ánh phụ thuộc DB.
+2. Bổ sung migration, bảng tài khoản/dự án/thiết bị và chính sách sao lưu trên Aiven for MySQL.
 3. Xây luồng tài khoản thử nghiệm bằng email, sau đó quản lý dự án, thiết bị và khóa gửi dữ liệu. Trước khi mở truy cập rộng, thay cách nhận diện email tạm thời bằng xác thực có kiểm chứng.
 4. Viết ví dụ ESP32/Arduino, kiểm tra gửi lại khi mất mạng, dữ liệu lỗi và quyền truy cập chéo giữa tài khoản.
 5. Thử tải và đo độ trễ end-to-end trên cấu hình Render/Aiven thực tế trước khi xác nhận hạn mức thiết bị, chu kỳ gửi và thời gian lưu dữ liệu.

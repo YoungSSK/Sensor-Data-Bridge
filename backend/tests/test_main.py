@@ -1,6 +1,25 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 from app.main import app
+from app.api.v1.endpoints import health, sensor
+
+
+@pytest.fixture
+def fake_database(monkeypatch):
+    readings = []
+
+    def add_reading(reading):
+        readings.append(reading)
+        return reading
+
+    monkeypatch.setattr(health, "check_database", lambda: None)
+    monkeypatch.setattr(sensor.SensorService, "add_reading", staticmethod(add_reading))
+    monkeypatch.setattr(
+        sensor.SensorService,
+        "get_by_sensor_id",
+        staticmethod(lambda sensor_id, limit=50: [r for r in readings if r.sensor_id == sensor_id][-limit:]),
+    )
+    return readings
 
 
 @pytest.mark.anyio
@@ -13,7 +32,7 @@ async def test_root_endpoint():
 
 
 @pytest.mark.anyio
-async def test_health_endpoint():
+async def test_health_endpoint(fake_database):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.get("/api/v1/health")
     assert response.status_code == 200
@@ -21,7 +40,7 @@ async def test_health_endpoint():
 
 
 @pytest.mark.anyio
-async def test_sensor_ingestion():
+async def test_sensor_ingestion(fake_database):
     payload = {
         "sensor_id": "TEST_ESP32_01",
         "sensor_type": "temperature",
