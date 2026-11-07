@@ -68,3 +68,14 @@ class TelemetryV1(BaseModel):
         payload = self.model_dump(mode="json")
         canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+class TelemetryIngestData(BaseModel):
+    message_id: UUID
+    accepted: bool = True
+    duplicate: bool = False
+    received_at: datetime
+
+
+class TelemetryIngestResponse(BaseModel):
+    data: TelemetryIngestData

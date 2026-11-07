@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     PORT: int = 8000
     HOST: str = "0.0.0.0"
+    SECRET_KEY: str = "sensor-data-bridge-dev-secret-key-change-in-production"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     MYSQL_HOST: str | None = None
     MYSQL_PORT: int | None = None
