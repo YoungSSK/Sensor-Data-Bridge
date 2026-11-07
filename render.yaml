@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: sensor-data-bridge-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MYSQL_DATABASE
+        value: defaultdb
+      - key: MYSQL_SSL_CA
+        value: certs/aiven-ca.pem
+      - key: BACKEND_CORS_ORIGINS
+        value: "*"
+      # Các biến bảo mật dưới đây bạn sẽ điền trên giao diện Render Dashboard:
+      # - MYSQL_HOST
+      # - MYSQL_PORT
+      # - MYSQL_USER
+      # - MYSQL_PASSWORD
