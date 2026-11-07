@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Union
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,10 +11,11 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     APP_NAME: str = "Sensor-Data-Bridge"
     ENVIRONMENT: str = "development"
+    DEBUG: bool = True
     PORT: int = 8000
     HOST: str = "0.0.0.0"
     SECRET_KEY: str = "sensor-data-bridge-dev-secret-key-change-in-production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days (10080 minutes)
 
     MYSQL_HOST: str | None = None
     MYSQL_PORT: int | None = None
@@ -23,13 +24,21 @@ class Settings(BaseSettings):
     MYSQL_PASSWORD: SecretStr | None = None
     MYSQL_SSL_CA: str | None = None
 
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:8000"]
+    # Cho phép nhận cả chuỗi '*' hoặc list JSON trên Render / Cloud
+    BACKEND_CORS_ORIGINS: Union[List[str], str] = [
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8000",
+    ]
 
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @field_validator("BACKEND_CORS_ORIGINS", mode="after")
     @classmethod
-    def assemble_cors_origins(cls, v: Any) -> list[str]:
+    def assemble_cors_origins(cls, v: Any) -> List[str]:
         if isinstance(v, str):
             clean = v.strip()
+            if clean == "*":
+                return ["*"]
             if clean.startswith("[") and clean.endswith("]"):
                 try:
                     return json.loads(clean)
