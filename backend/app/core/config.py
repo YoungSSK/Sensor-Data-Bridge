@@ -1,8 +1,9 @@
+import json
 from pathlib import Path
+from typing import Any
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
@@ -23,6 +24,21 @@ class Settings(BaseSettings):
     MYSQL_SSL_CA: str | None = None
 
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:8000"]
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            clean = v.strip()
+            if clean.startswith("[") and clean.endswith("]"):
+                try:
+                    return json.loads(clean)
+                except Exception:
+                    pass
+            return [i.strip() for i in clean.split(",") if i.strip()]
+        elif isinstance(v, list):
+            return v
+        return ["*"]
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",
