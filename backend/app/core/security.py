@@ -1,7 +1,9 @@
+from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
 from typing import Any, Dict, Optional
+from cryptography.fernet import Fernet, InvalidToken
 import jwt
 
 from app.core.config import settings
@@ -44,6 +46,35 @@ def generate_device_token(prefix: str = "sdb_dev_") -> tuple[str, str, str]:
     token_hash = hash_token(raw_token)
     token_prefix = raw_token[:12]
     return raw_token, token_hash, token_prefix
+
+
+def generate_channel_api_key(key_type: str) -> tuple[str, str, str]:
+    """Generate a channel-scoped API key and return raw value, hash and display prefix."""
+    if key_type not in {"read", "write"}:
+        raise ValueError("key_type must be 'read' or 'write'")
+    raw_token = f"sdb_{key_type}_{secrets.token_urlsafe(32)}"
+    return raw_token, hash_token(raw_token), raw_token[:20]
+
+
+def _channel_api_key_cipher() -> Fernet:
+    """Build a stable encryption key from the application's secret key."""
+    cipher_key = urlsafe_b64encode(hashlib.sha256(settings.SECRET_KEY.encode("utf-8")).digest())
+    return Fernet(cipher_key)
+
+
+def encrypt_channel_api_key(raw_key: str) -> str:
+    """Encrypt a channel API key for owner-only copy/retrieval."""
+    return _channel_api_key_cipher().encrypt(raw_key.encode("utf-8")).decode("ascii")
+
+
+def decrypt_channel_api_key(ciphertext: Optional[str]) -> Optional[str]:
+    """Decrypt a stored channel API key, returning None for legacy/invalid data."""
+    if not ciphertext:
+        return None
+    try:
+        return _channel_api_key_cipher().decrypt(ciphertext.encode("ascii")).decode("utf-8")
+    except (InvalidToken, UnicodeError, ValueError, TypeError):
+        return None
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:

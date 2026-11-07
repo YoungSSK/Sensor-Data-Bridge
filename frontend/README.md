@@ -1,24 +1,29 @@
-# 🖥️ Frontend - IoT Dashboard
+# Sensor Data Bridge Frontend
 
-React + Vite frontend for monitoring and interacting with Sensor-Data-Bridge.
+React + Vite frontend cho MVP Channel của Sensor Data Bridge.
 
-## Structure
-```text
-frontend/
-├── public/             # Static files
-├── src/
-│   ├── components/     # React UI components (Cards, Modals)
-│   ├── services/       # API integration client (fetch / axios)
-│   ├── styles/         # CSS styles
-│   ├── App.jsx         # Main dashboard view
-│   └── main.jsx        # App entry point
-├── package.json        # Dependencies & scripts
-└── vite.config.js      # Vite build & dev-proxy config
-```
+## Màn hình hiện có
 
-## Running Frontend
-```bash
-npm install
+- `/login` và `/register`: đăng nhập/đăng ký bằng email và mật khẩu.
+- `/channels`: danh sách Channel và tạo Channel mới.
+- `/channels/:channelId/private_show`: Private View, số bản ghi và biểu đồ riêng cho từng field.
+- `/channels/:channelId/api_keys`: tạo/thu hồi Read/Write API Key; chủ Channel có thể sao chép lại key còn hoạt động.
+
+Frontend gọi backend qua `/api/v1`. Khi chạy local, Vite proxy request `/api` tới `http://127.0.0.1:8000`; có thể ghi đè bằng `VITE_API_BASE_URL` khi deploy.
+
+## Chạy cục bộ
+
+```powershell
+npm ci
 npm run dev
 ```
-Open [http://localhost:5173](http://localhost:5173) to view the dashboard.
+
+Mở `http://localhost:5173`. Backend cần chạy trước tại `http://127.0.0.1:8000`.
+
+## Kiểm tra build
+
+```powershell
+npm run build
+```
+
+Các component và view cũ cho `projects/devices/telemetry` vẫn được giữ trong source để phục vụ giai đoạn chuyển tiếp, nhưng luồng mặc định hiện tại là Channel MVP.

@@ -4,7 +4,7 @@
 
 > **Mục tiêu MVP:** Đăng ký/đăng nhập → tạo Channel → lấy Write API Key → ESP32 gửi số đo → xem biểu đồ tại `private_show`. Người dùng cũng có thể tạo và quản lý Read/Write API Key tại `api_keys`.
 >
-> **Trạng thái:** Đây là **yêu cầu cho phiên bản MVP cần phát triển**, không phải các chức năng đã có đầy đủ trong repository hiện tại.
+> **Trạng thái:** Backend và frontend Channel MVP đang được triển khai. Backend đã kết nối Aiven; frontend đã có luồng Channels, Private View và API Keys.
 
 ## 1. Chức năng MVP
 
@@ -50,7 +50,7 @@ Mỗi Channel hỗ trợ hai loại khóa:
 | **Read API Key** | Chỉ đọc dữ liệu của đúng Channel | Ứng dụng hoặc dịch vụ đọc số đo |
 
 - Chủ Channel có thể **tạo khóa mới**, xem danh sách các khóa và **thu hồi/tạo lại** khóa khi cần.
-- Không hiển thị hoặc lưu khóa dưới dạng văn bản thuần không cần thiết; giá trị khóa bí mật chỉ nên hiện **một lần lúc tạo**.
+- Không lưu khóa dưới dạng văn bản thuần; secret được mã hóa trong backend và chỉ trả cho chủ Channel khi key còn hoạt động để hỗ trợ sao chép lại.
 - API kiểm tra khóa và loại quyền trước khi cho phép đọc hoặc ghi dữ liệu.
 - Khóa của Channel này không dùng để truy cập Channel khác.
 
@@ -109,12 +109,12 @@ README này thay thế phạm vi MVP cũ bằng mô hình **Channel**. Các thà
 | --- | --- |
 | Backend FastAPI, kết nối Aiven MySQL, API health | Đã có |
 | Gửi/đọc từng số đo qua API `sensors/readings` | Đã có bản thử nghiệm, **chưa dùng Channel/API Key** |
-| React dashboard xem số đo và mô phỏng dữ liệu | Đã có bản thử nghiệm |
-| Đăng ký/đăng nhập bằng email và mật khẩu | **Chưa triển khai** |
-| Tạo Channel, Channel ID và field | **Chưa triển khai** |
-| `/channels/{id}/private_show` với biểu đồ theo field | **Chưa triển khai** |
-| `/channels/{id}/api_keys` và xác thực Read/Write API Key | **Chưa triển khai** |
-| ESP32 gửi số đo theo Channel ID | **Chưa tích hợp** |
+| React Channel dashboard, Private View và API Keys | Đã triển khai MVP frontend |
+| Đăng ký/đăng nhập bằng email và mật khẩu | Đã triển khai |
+| Tạo Channel, Channel ID và field | Đã triển khai trong backend |
+| `/channels/{id}/private_show` với dữ liệu theo field | Đã triển khai backend và frontend |
+| `/channels/{id}/api_keys` và xác thực Read/Write API Key | Đã triển khai |
+| ESP32 gửi số đo theo Channel ID | Đã triển khai API `POST /api/v1/channels/{id}/feeds` |
 
 API thử nghiệm hiện có: `GET /api/v1/health`, `POST /api/v1/sensors/readings`, `GET /api/v1/sensors/readings` và `GET /api/v1/sensors/readings/{sensor_id}`. Các API này **chưa có xác thực**, chỉ nên dùng trong môi trường thử nghiệm; không coi chúng là API Channel chính thức.
 
@@ -134,6 +134,13 @@ Set-Location backend
 
 Trước khi chạy, cấu hình các biến `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_SSL_CA` trong `backend/.env` theo cơ sở dữ liệu Aiven. Tài liệu API tại `http://127.0.0.1:8000/docs`.
 
+Sau khi cấu hình database, chạy migration:
+
+```powershell
+Set-Location backend
+.\.venv\Scripts\python.exe -m alembic upgrade head
+```
+
 **Frontend** (cửa sổ PowerShell mới, từ thư mục gốc):
 
 ```powershell
@@ -142,15 +149,14 @@ npm ci
 npm run dev
 ```
 
-Mở `http://localhost:5173` để xem dashboard **hiện tại** (chưa phải giao diện Channel mới).
+Mở `http://localhost:5173` để sử dụng giao diện Channel MVP. Các view `projects/devices/telemetry` cũ vẫn được giữ trong source cho giai đoạn chuyển tiếp.
 
-## 6. Thứ tự phát triển
+## 6. Trạng thái roadmap
 
-1. **Tài khoản:** tạo bảng người dùng, đăng ký/đăng nhập có mật khẩu được băm và phiên đăng nhập hợp lệ.
-2. **Channel:** tạo/danh sách Channel, tự sinh Channel ID, cấu hình field và kiểm tra chủ sở hữu.
-3. **API Keys:** tạo/thu hồi Read và Write API Key theo từng Channel, phân quyền đọc/ghi.
-4. **Dữ liệu:** xây API ghi/đọc số đo theo Channel; tích hợp ESP32.
-5. **Biểu đồ:** hoàn thiện `/channels/{id}/private_show` và tự tải dữ liệu mới định kỳ.
+1. **Backend MVP:** đã hoàn tất tài khoản, Channel/field, Read/Write API Key, feed API và `private_show` API.
+2. **Frontend Channel MVP:** đã có đăng nhập, danh sách/tạo Channel, cấu hình field, Private View biểu đồ polling và quản lý API key.
+3. **Tiếp theo:** kiểm thử giao diện thực tế, hoàn thiện responsive/UX và triển khai frontend cùng backend trên môi trường production.
+4. **Sau MVP:** cân nhắc Public View, chia sẻ Channel, cảnh báo vượt ngưỡng, MQTT và dashboard phân tích nâng cao.
 
 **Ngoài phạm vi MVP:** Public View, chia sẻ Channel, ứng dụng mobile, cảnh báo vượt ngưỡng, MQTT, dashboard phân tích nâng cao và các tính năng quản lý dự án/phân quyền quản trị phức tạp.
 

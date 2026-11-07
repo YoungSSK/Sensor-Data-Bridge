@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import BACKEND_DIR, settings
+from app.models import Base
 
 
 def get_ca_path() -> Path:
@@ -98,7 +99,10 @@ def get_connection() -> Connection:
 
 
 def init_database() -> None:
-    """Initialize legacy tables if needed."""
+    """Create tables for local/bootstrap deployments and preserve the legacy table."""
+    # Alembic remains the canonical schema migration path. create_all is a no-op for
+    # tables that already exist and lets a fresh deployment boot before first migration.
+    Base.metadata.create_all(bind=engine)
     connection = get_connection()
     try:
         with connection.cursor() as cursor:
