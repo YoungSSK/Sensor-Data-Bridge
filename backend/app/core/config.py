@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     MYSQL_PASSWORD: SecretStr | None = None
     MYSQL_SSL_CA: str | None = None
 
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:8000"]
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

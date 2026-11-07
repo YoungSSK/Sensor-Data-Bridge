@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "metrics_revision": 1,
+  "message_id": "a24f6943-2dc4-4baa-b021-9d6e252d8b51",
+  "measured_at": "2026-11-05T08:00:00.000Z",
+  "time_quality": "synced",
+  "uptime_ms": 125000,
+  "values": {
+    "air_temperature": 29.5,
+    "air_humidity": 75.0,
+    "ph": null
+  },
+  "quality": {
+    "air_temperature": "valid",
+    "air_humidity": "valid",
+    "ph": "uncalibrated"
+  },
+  "calibration_revision": "pepper-cal-001",
+  "firmware_version": "0.1.0"
+}

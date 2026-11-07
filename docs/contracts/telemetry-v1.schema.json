@@ -1,0 +1,119 @@
+{
+  "additionalProperties": false,
+  "description": "One atomic reading from a device; device identity comes from its token.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "metrics_revision": {
+      "minimum": 1,
+      "title": "Metrics Revision",
+      "type": "integer"
+    },
+    "message_id": {
+      "format": "uuid",
+      "title": "Message Id",
+      "type": "string"
+    },
+    "measured_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Measured At"
+    },
+    "time_quality": {
+      "enum": [
+        "synced",
+        "unsynced"
+      ],
+      "title": "Time Quality",
+      "type": "string"
+    },
+    "uptime_ms": {
+      "minimum": 0,
+      "title": "Uptime Ms",
+      "type": "integer"
+    },
+    "values": {
+      "additionalProperties": false,
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-z0-9_]{1,40}$": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "title": "Values",
+      "type": "object"
+    },
+    "quality": {
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z0-9_]{1,40}$": {
+          "enum": [
+            "valid",
+            "uncalibrated",
+            "sensor_error",
+            "stale",
+            "out_of_range"
+          ],
+          "type": "string"
+        }
+      },
+      "title": "Quality",
+      "type": "object"
+    },
+    "calibration_revision": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Calibration Revision"
+    },
+    "firmware_version": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Firmware Version"
+    }
+  },
+  "required": [
+    "schema_version",
+    "metrics_revision",
+    "message_id",
+    "measured_at",
+    "time_quality",
+    "uptime_ms",
+    "values",
+    "quality"
+  ],
+  "title": "TelemetryV1",
+  "type": "object"
+}

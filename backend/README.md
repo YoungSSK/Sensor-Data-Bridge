@@ -2,6 +2,8 @@
 
 Backend nhận và truy vấn số đo cảm biến qua MySQL trên Aiven. Các endpoint hiện tại nằm dưới `/api/v1`; tài liệu tương tác tại `/docs`.
 
+Schema cho bản tin nhiều chỉ số phiên bản 1 nằm tại `app/schemas/telemetry.py`; ví dụ và JSON Schema tại [`../docs/contracts/`](../docs/contracts/README.md). Schema này chưa được nối vào endpoint nhận dữ liệu; `/sensors/readings` vẫn dùng payload một chỉ số.
+
 ## Cấu hình
 
 Sao chép `.env.example` thành `.env` rồi điền thông tin của dịch vụ Aiven:

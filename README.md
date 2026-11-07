@@ -91,7 +91,7 @@ npm ci
 npm run dev
 ```
 
-Mở `http://localhost:3000`. Khi phát triển cục bộ, Vite chuyển tiếp các request `/api` tới backend tại `http://127.0.0.1:8000`, nên có thể chạy mà không cần tạo `frontend/.env`. Nếu đặt `VITE_API_BASE_URL`, giá trị phải là URL đầy đủ tới tiền tố `/api/v1` của backend; khi frontend và backend khác origin, cấu hình `BACKEND_CORS_ORIGINS` tương ứng ở backend.
+Mở `http://localhost:5173`. Khi phát triển cục bộ, Vite chuyển tiếp các request `/api` tới backend tại `http://127.0.0.1:8000`, nên có thể chạy mà không cần tạo `frontend/.env`. Nếu đặt `VITE_API_BASE_URL`, giá trị phải là URL đầy đủ tới tiền tố `/api/v1` của backend; khi frontend và backend khác origin, cấu hình `BACKEND_CORS_ORIGINS` tương ứng ở backend.
 
 ### 3. Thử gửi một số đo
 
@@ -156,7 +156,7 @@ GitHub Actions hiện chạy kiểm thử backend và build frontend trên các 
 
 ## Các bước phát triển tiếp theo
 
-1. Chốt hợp đồng dữ liệu giữa ESP32, FastAPI và dashboard; xác định cách gửi nhiều chỉ số trong một bản tin, timestamp và mã chống trùng.
+1. Chốt hợp đồng dữ liệu giữa ESP32, FastAPI và dashboard; xác định cách gửi nhiều chỉ số trong một bản tin, timestamp và mã chống trùng. **Đã thêm schema v1 và ví dụ** tại [`docs/contracts/`](docs/contracts/README.md), cùng kiểm tra hợp lệ/hash tại `backend/app/schemas/telemetry.py`. Còn cần thống nhất danh sách trường/đơn vị theo dự án và tích hợp endpoint sau khi có thiết bị, khóa và migration.
 2. Bổ sung migration, bảng tài khoản/dự án/thiết bị và chính sách sao lưu trên Aiven for MySQL.
 3. Xây luồng tài khoản thử nghiệm bằng email, sau đó quản lý dự án, thiết bị và khóa gửi dữ liệu. Trước khi mở truy cập rộng, thay cách nhận diện email tạm thời bằng xác thực có kiểm chứng.
 4. Viết ví dụ ESP32/Arduino, kiểm tra gửi lại khi mất mạng, dữ liệu lỗi và quyền truy cập chéo giữa tài khoản.
