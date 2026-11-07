@@ -27,13 +27,13 @@ MVP đầu tiên tập trung vào một luồng khép kín: người dùng đăn
 
 | Hạng mục | Hiện có trong repository | Mục tiêu MVP |
 | --- | --- | --- |
-| API FastAPI | Health check; nhận và đọc số đo đơn lẻ | API cho tài khoản, dự án, thiết bị và dữ liệu đo |
-| Lưu trữ | Số đo được ghi vào bảng `sensor_readings` trên Aiven for MySQL | Bổ sung migration và mô hình dữ liệu dự án/thiết bị |
-| Đăng ký/đăng nhập | Chưa có | Nhập email để thử nghiệm; chưa xác minh Google/email |
-| Bảo vệ API | Chưa có khóa thiết bị hay phân quyền | Khóa riêng cho thiết bị, giới hạn dữ liệu theo chủ sở hữu |
-| Dashboard | Xem số đo và gửi mẫu mô phỏng | Quản lý thiết bị, xem số đo mới nhất/lịch sử cơ bản |
+| API FastAPI | Health check, đo đơn lẻ (legacy), API tài khoản, dự án, thiết bị và telemetry V1 | Mở rộng tổng hợp aggregate và phân trang cursor |
+| Lưu trữ | Quản lý qua Alembic: `users`, `projects`, `devices`, `device_tokens`, `telemetry_records` và `sensor_readings` | Bổ sung chính sách lưu trữ và backup |
+| Đăng ký/đăng nhập | Đã có: Nhập email nhận JWT Bearer token để thử nghiệm MVP | Bổ sung Google OAuth / OTP khi đưa vào sử dụng rộng rãi |
+| Bảo vệ API | Đã có: Khóa riêng thiết bị (Device Token SHA-256), phân quyền dữ liệu theo chủ sở hữu (User JWT) | Phân quyền chi tiết (RBAC) theo vai trò thành viên |
+| Dashboard | Xem số đo và gửi mẫu mô phỏng đơn lẻ (legacy) | Nâng cấp quản lý thiết bị, xem số đo mới nhất/lịch sử theo trạm đa chỉ số |
 | ESP32 và thư viện Arduino | Chưa có trong repository | Gửi dữ liệu cảm biến qua API; có ví dụ tích hợp |
-| Render | Chưa có cấu hình triển khai | Chạy dịch vụ FastAPI |
+| Render | Hướng dẫn cấu hình triển khai | Chạy dịch vụ FastAPI live |
 
 Các tính năng như biểu đồ nâng cao, CSV, SSE, tổng hợp dữ liệu, chính sách lưu lịch sử, ứng dụng mobile, MQTT, OTA và điều khiển tưới là hướng phát triển tiếp theo. Mục tiêu tải 50–100 thiết bị gửi mỗi 1–5 giây trong tài liệu v0.1 **chưa được kiểm chứng** trên Render/Aiven; cần thử tải trước khi công bố khả năng hỗ trợ.
 
@@ -116,17 +116,40 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/sensors/readings/ESP32_01"
 
 ## API hiện có
 
-Tất cả endpoint dưới đây đều chưa yêu cầu đăng nhập hoặc khóa thiết bị. Chỉ dùng bản hiện tại trong môi trường thử nghiệm có kiểm soát.
+### 1. Dành cho Thiết bị IoT (ESP32)
+
+Yêu cầu header: `Authorization: Bearer <DEVICE_TOKEN>`
+
+| Phương thức | Đường dẫn | Tác dụng |
+| --- | --- | --- |
+| `POST` | `/api/v1/telemetry` | Nhận bản tin đa chỉ số V1, kiểm tra time window, chống ghi trùng lặp idempotency |
+
+### 2. Dành cho Người dùng & Dashboard (Web / Mobile)
+
+Yêu cầu header: `Authorization: Bearer <USER_ACCESS_TOKEN>` (sau khi đăng nhập)
+
+| Phương thức | Đường dẫn | Tác dụng |
+| --- | --- | --- |
+| `POST` | `/api/v1/auth/login` | Đăng nhập/đăng ký bằng Email thử nghiệm, trả về JWT Token |
+| `GET` | `/api/v1/auth/me` | Lấy thông tin tài khoản hiện tại |
+| `GET`, `POST` | `/api/v1/projects` | Danh sách và tạo dự án mới |
+| `GET`, `PATCH` | `/api/v1/projects/{id}` | Xem chi tiết hoặc cập nhật dự án |
+| `GET`, `POST` | `/api/v1/projects/{id}/devices` | Danh sách thiết bị và tạo trạm mới (cấp Device Token) |
+| `GET`, `PATCH` | `/api/v1/devices/{id}` | Xem chi tiết hoặc sửa cấu hình trạm |
+| `POST` | `/api/v1/devices/{id}/tokens` | Cấp token mới cho thiết bị |
+| `DELETE` | `/api/v1/devices/{id}/tokens/{tokenId}` | Thu hồi token thiết bị |
+| `GET` | `/api/v1/devices/{id}/latest` | Lấy số đo mới nhất các cảm biến của trạm |
+| `GET` | `/api/v1/devices/{id}/telemetry?limit=50` | Xem lịch sử các lần đo của trạm |
+
+### 3. Hệ thống & Đo đơn lẻ (Legacy)
 
 | Phương thức | Đường dẫn | Tác dụng |
 | --- | --- | --- |
 | `GET` | `/` | Thông tin ứng dụng và đường dẫn tài liệu |
 | `GET` | `/api/v1/health` | Kiểm tra kết nối MySQL; trả `503` khi DB không khả dụng |
-| `POST` | `/api/v1/sensors/readings` | Nhận một số đo, trả `201` |
-| `GET` | `/api/v1/sensors/readings?limit=50` | Đọc các số đo gần đây; `limit` từ 1 đến 1000 |
-| `GET` | `/api/v1/sensors/readings/{sensor_id}?limit=50` | Đọc theo sensor ID; trả `404` nếu chưa có dữ liệu |
-
-API đăng ký/đăng nhập, cấp khóa thiết bị, dự án, phân trang lịch sử và các endpoint telemetry mở rộng **chưa được triển khai**. Khi thiết kế hợp đồng mới, cần thống nhất với cả firmware và dashboard trước khi thay đổi payload đang dùng.
+| `POST` | `/api/v1/sensors/readings` | Nhận một số đo đơn lẻ (legacy) |
+| `GET` | `/api/v1/sensors/readings?limit=50` | Đọc các số đo gần đây (legacy) |
+| `GET` | `/api/v1/sensors/readings/{sensor_id}?limit=50` | Đọc theo sensor ID (legacy) |
 
 ## Triển khai mục tiêu với Render và Aiven
 
