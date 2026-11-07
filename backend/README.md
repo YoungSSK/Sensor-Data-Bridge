@@ -1,42 +1,79 @@
-# Backend FastAPI
+# Sensor Data Bridge Backend
 
-Backend nhận và truy vấn số đo cảm biến qua MySQL trên Aiven. Các endpoint hiện tại nằm dưới `/api/v1`; tài liệu tương tác tại `/docs`.
+FastAPI backend cho MVP Channel của Sensor Data Bridge. Backend dùng JWT cho tài khoản người dùng, MySQL/Aiven để lưu dữ liệu và API key theo từng Channel cho ESP32.
 
-Schema cho bản tin nhiều chỉ số phiên bản 1 nằm tại `app/schemas/telemetry.py`; ví dụ và JSON Schema tại [`../docs/contracts/`](../docs/contracts/README.md). Schema này chưa được nối vào endpoint nhận dữ liệu; `/sensors/readings` vẫn dùng payload một chỉ số.
+## Mô hình dữ liệu
 
-## Cấu hình
+- `users`: tài khoản email/mật khẩu đã băm.
+- `channels`: Channel thuộc một user, có ID số tự tăng.
+- `channel_fields`: cấu hình `field1` ... `field8`, gồm tên hiển thị và đơn vị.
+- `api_keys`: khóa `read` hoặc `write`, lưu SHA-256 hash cùng secret đã mã hóa để chủ Channel có thể sao chép lại key còn hoạt động.
+- `channel_feeds`: từng payload số đo cùng thời điểm backend nhận.
 
-Sao chép `.env.example` thành `.env` rồi điền thông tin của dịch vụ Aiven:
+Các bảng cũ `projects/devices/telemetry_records` và API tương ứng vẫn được giữ để dashboard thử nghiệm hiện tại không bị gãy; luồng Channel là API chính của MVP mới.
 
-| Biến | Ý nghĩa |
-| --- | --- |
-| `MYSQL_HOST` | Host MySQL của Aiven |
-| `MYSQL_PORT` | Port MySQL của Aiven |
-| `MYSQL_DATABASE` | Database đã được tạo trên Aiven |
-| `MYSQL_USER` | Tài khoản MySQL |
-| `MYSQL_PASSWORD` | Mật khẩu tài khoản MySQL |
-| `MYSQL_SSL_CA` | Đường dẫn tệp CA để xác minh TLS; đường dẫn tương đối tính từ `backend/` |
+## API MVP
 
-Ứng dụng cần đủ cả sáu biến trên và tệp CA. Khi khởi động, backend chạy `CREATE TABLE IF NOT EXISTS` cho bảng `sensor_readings`, nên tài khoản MySQL cần quyền `CREATE` khi khởi động, cùng quyền `INSERT` và `SELECT` để phục vụ API. Hiện chưa có migration cho thay đổi schema.
+Tất cả endpoint nằm dưới `/api/v1`.
 
-## Chạy cục bộ
+| Nhóm | Endpoint | Quyền |
+| --- | --- | --- |
+| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me` | JWT |
+| Channel | `GET/POST /channels`, `GET/PATCH/DELETE /channels/{id}` | Chủ Channel |
+| Field | `PUT /channels/{id}/fields` | Chủ Channel |
+| API key | `GET/POST /channels/{id}/api_keys`, `DELETE /channels/{id}/api_keys/{key_id}` | Chủ Channel |
+| Ghi feed | `POST /channels/{id}/feeds` | `X-API-Key: <WRITE_KEY>` |
+| Đọc feed | `GET /channels/{id}/feeds` | Read key hoặc chủ Channel |
+| Biểu đồ riêng | `GET /channels/{id}/private_show` | Chủ Channel |
 
-Từ thư mục gốc repository, dùng PowerShell:
+Tạo Channel:
+
+```json
+{
+  "name": "Vườn ươm ớt",
+  "description": "Theo dõi môi trường",
+  "fields": [
+    {"key": "field1", "name": "Nhiệt độ không khí", "unit": "°C"},
+    {"key": "field2", "name": "Độ ẩm không khí", "unit": "%"}
+  ]
+}
+```
+
+ESP32 gửi dữ liệu:
+
+```http
+POST /api/v1/channels/1/feeds
+X-API-Key: sdb_write_...
+Content-Type: application/json
+```
+
+```json
+{
+  "field1": 28.2,
+  "field2": 42.5
+}
+```
+
+Secret API key được trả về khi tạo và khi chủ Channel tải danh sách key còn hoạt động. Backend chỉ lưu secret ở dạng mã hóa; key đã thu hồi không được trả lại secret.
+
+## Cấu hình và chạy
 
 ```powershell
 py -3.13 -m venv backend\.venv
 .\backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+Copy-Item backend\.env.example backend\.env
 Set-Location backend
+.\.venv\Scripts\python.exe -m alembic upgrade head
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Truy cập `http://127.0.0.1:8000/docs` để thử API và `http://127.0.0.1:8000/api/v1/health` để kiểm tra MySQL. Backend sẽ không khởi động nếu thiếu cấu hình hoặc không kết nối được Aiven. Dữ liệu đo được ghi bền vững; khởi động lại backend không xóa dữ liệu.
+Điền các biến `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_SSL_CA` trong `backend/.env`. Tài liệu OpenAPI ở `http://127.0.0.1:8000/docs`.
+
+`alembic upgrade head` là đường dẫn migration chính. Ứng dụng vẫn có bootstrap `create_all` khi triển khai mới để tránh khởi động thất bại trước migration đầu tiên.
 
 ## Kiểm thử
 
 ```powershell
 Set-Location backend
-.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m pytest -q
 ```
-
-Các kiểm thử tự động dùng dữ liệu giả để không ghi vào Aiven. API gửi/đọc số đo vẫn chưa có xác thực hoặc khóa thiết bị; chỉ dùng trong môi trường thử nghiệm có kiểm soát.

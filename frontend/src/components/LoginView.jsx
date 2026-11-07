@@ -102,7 +102,7 @@ export default function LoginView({ onLoginSuccess }) {
           <h2>{mode === 'login' ? 'Chào mừng trở lại' : 'Tạo tài khoản mới'}</h2>
           <p className="login-desc">
             {mode === 'login'
-              ? 'Đăng nhập để quản lý dự án vườn ươm, trạm ESP32 và nhật ký telemetry.'
+            ? 'Đăng nhập để quản lý Channel, API key và dữ liệu cảm biến.'
               : 'Đăng ký tài khoản với bất kỳ email cá nhân nào (Gmail, Yahoo, Outlook...) để bắt đầu.'}
           </p>
         </div>
@@ -127,6 +127,7 @@ export default function LoginView({ onLoginSuccess }) {
               <label>Họ và Tên</label>
               <input
                 type="text"
+              className="input-control"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Ví dụ: Nguyễn Văn A"
@@ -139,6 +140,7 @@ export default function LoginView({ onLoginSuccess }) {
             <label>Địa Chỉ Email</label>
             <input
               type="email"
+              className="input-control"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="vidu@gmail.com hoặc email bất kỳ"
@@ -165,10 +167,11 @@ export default function LoginView({ onLoginSuccess }) {
             </div>
             <input
               type={showPassword ? 'text' : 'password'}
+              className="input-control"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={mode === 'register' ? 'Tối thiểu 6 ký tự' : 'Nhập mật khẩu của bạn'}
-              required={mode === 'register'}
+              required
               autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
             />
           </div>
@@ -178,6 +181,7 @@ export default function LoginView({ onLoginSuccess }) {
               <label>Xác Nhận Mật Khẩu</label>
               <input
                 type={showPassword ? 'text' : 'password'}
+                className="input-control"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Nhập lại mật khẩu ở trên"

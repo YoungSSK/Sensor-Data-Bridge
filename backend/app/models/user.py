@@ -25,6 +25,9 @@ class User(Base):
     projects: Mapped[List["Project"]] = relationship(
         "Project", back_populates="owner", cascade="all, delete-orphan"
     )
+    channels: Mapped[List["Channel"]] = relationship(
+        "Channel", back_populates="owner", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<User id={self.id} email={self.email}>"

@@ -81,6 +81,68 @@ export const getMe = async () => {
   return res.json();
 };
 
+// =================== CHANNEL MVP ===================
+const readError = async (res, fallback) => {
+  const err = await res.json().catch(() => ({}));
+  const error = new Error(err.detail || fallback);
+  error.status = res.status;
+  return error;
+};
+
+const channelRequest = async (path, options = {}, fallback = 'Không thể hoàn tất yêu cầu') => {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      ...authHeaders(),
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) throw await readError(res, `${fallback} (HTTP ${res.status})`);
+  if (res.status === 204) return null;
+  return res.json();
+};
+
+export const getChannels = async () => channelRequest('/channels', {}, 'Không thể tải danh sách Channel');
+
+export const createChannel = async (payload) =>
+  channelRequest(
+    '/channels',
+    { method: 'POST', body: JSON.stringify(payload) },
+    'Không thể tạo Channel',
+  );
+
+export const updateChannel = async (channelId, payload) =>
+  channelRequest(
+    `/channels/${channelId}`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+    'Không thể cập nhật Channel',
+  );
+
+export const getChannelPrivateShow = async (channelId, limit = 100) =>
+  channelRequest(
+    `/channels/${channelId}/private_show?limit=${limit}`,
+    {},
+    'Không thể tải dữ liệu Channel',
+  );
+
+export const getChannelApiKeys = async (channelId) =>
+  channelRequest(`/channels/${channelId}/api_keys`, {}, 'Không thể tải API key');
+
+export const createChannelApiKey = async (channelId, { type, name }) =>
+  channelRequest(
+    `/channels/${channelId}/api_keys`,
+    { method: 'POST', body: JSON.stringify({ type, name }) },
+    'Không thể tạo API key',
+  );
+
+export const revokeChannelApiKey = async (channelId, keyId) =>
+  channelRequest(
+    `/channels/${channelId}/api_keys/${keyId}`,
+    { method: 'DELETE' },
+    'Không thể thu hồi API key',
+  );
+
 // =================== PROJECTS ===================
 export const getProjects = async () => {
   const res = await fetch(`${API_BASE}/projects`, {
