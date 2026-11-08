@@ -346,8 +346,10 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .field-editor-heading p { margin-top: 2px; color: var(--color-text-secondary); font-size: 12px; }
 .field-editor-list { display: flex; flex-direction: column; gap: 10px; }
 .field-editor-row { display: grid; grid-template-columns: 100px minmax(0, 1fr) 100px 36px; align-items: end; gap: 8px; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-secondary); }
-.field-editor-row label { display: block; margin-bottom: 5px; color: var(--color-text-secondary); font-size: 11px; }
+.field-editor-row label, .field-control-label { display: block; margin-bottom: 5px; color: var(--color-text-secondary); font-size: 11px; }
 .field-editor-row .input-control { min-height: 40px; padding: 7px 9px; font-size: 13px; }
+.field-key-display { min-height: 40px; display: flex; align-items: center; padding: 7px 9px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-secondary); font-size: 13px; }
+.field-editor-note { margin-top: 14px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .confirm-modal { width: min(100%, 440px); text-align: center; }
 .confirm-modal-icon { width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; border-radius: 50%; color: var(--color-danger); background: rgba(215, 0, 21, .08); }

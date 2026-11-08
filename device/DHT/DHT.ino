@@ -5,8 +5,8 @@
 #include <math.h>
 
 // Điền thông tin Wi-Fi trước khi nạp chương trình vào ESP32.
-const char* WIFI_SSID = "TEN_WIFI";
-const char* WIFI_PASSWORD = "MAT_KHAU_WIFI";
+const char* WIFI_SSID = "Nha Tro 116";
+const char* WIFI_PASSWORD = "0932650165";
 
 const char* FEED_URL =
     "https://sensor-data-bridge-backend.onrender.com/api/v1/channels/1/feeds";

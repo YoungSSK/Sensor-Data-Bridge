@@ -164,3 +164,66 @@ async def test_channel_key_scope_and_permissions(test_db_session):
             json={"field1": 1},
         )
         assert revoked_ingest.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_replace_fields_after_channel_creation_preserves_feed_history(test_db_session):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        owner = await ac.post(
+            "/api/v1/auth/register",
+            json={"email": "field-owner@example.com", "password": "strong-password"},
+        )
+        owner_headers = {"Authorization": f"Bearer {owner.json()['access_token']}"}
+        channel = await ac.post(
+            "/api/v1/channels",
+            headers=owner_headers,
+            json={"name": "Nursery", "fields": [
+                {"key": "field1", "name": "Temperature", "unit": "C"},
+                {"key": "field2", "name": "Humidity", "unit": "%"},
+            ]},
+        )
+        channel_id = channel.json()["id"]
+        original_field_id = channel.json()["fields"][0]["id"]
+        write_key = await ac.post(
+            f"/api/v1/channels/{channel_id}/api_keys",
+            headers=owner_headers,
+            json={"type": "write"},
+        )
+        ingest_headers = {"X-API-Key": write_key.json()["raw_key"]}
+        assert (await ac.post(
+            f"/api/v1/channels/{channel_id}/feeds",
+            headers=ingest_headers,
+            json={"field1": 28, "field2": 60},
+        )).status_code == 201
+
+        updated = await ac.put(
+            f"/api/v1/channels/{channel_id}/fields",
+            headers=owner_headers,
+            json=[
+                {"key": "field1", "name": "Air temperature", "unit": "°C"},
+                {"key": "field3", "name": "Soil moisture", "unit": "%"},
+            ],
+        )
+        assert updated.status_code == 200
+        assert [field["key"] for field in updated.json()] == ["field1", "field3"]
+        assert updated.json()[0]["id"] == original_field_id
+        assert updated.json()[0]["name"] == "Air temperature"
+
+        private_show = await ac.get(
+            f"/api/v1/channels/{channel_id}/private_show", headers=owner_headers,
+        )
+        assert private_show.status_code == 200
+        assert [field["key"] for field in private_show.json()["fields"]] == ["field1", "field3"]
+        assert private_show.json()["feeds"][0]["values"] == {"field1": 28, "field2": 60}
+
+        removed_field = await ac.post(
+            f"/api/v1/channels/{channel_id}/feeds",
+            headers=ingest_headers,
+            json={"field2": 61},
+        )
+        assert removed_field.status_code == 422
+        assert (await ac.post(
+            f"/api/v1/channels/{channel_id}/feeds",
+            headers=ingest_headers,
+            json={"field3": 45},
+        )).status_code == 201

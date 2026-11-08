@@ -23,6 +23,7 @@ import ChannelCreateModal from './components/ChannelCreateModal';
 import ChannelsPage from './components/ChannelsPage';
 import ChannelPrivateView from './components/ChannelPrivateView';
 import ChannelApiKeysView from './components/ChannelApiKeysView';
+import ChannelFieldsModal from './components/ChannelFieldsModal';
 
 const parseRoute = (path = window.location.pathname) => {
   const match = path.match(/^\/channels\/(\d+)\/(private_show|api_keys)\/?$/);
@@ -169,6 +170,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isFieldEditorOpen, setIsFieldEditorOpen] = useState(false);
 
   const selectedChannel = useMemo(
     () => channels.find((channel) => channel.id === route.channelId),
@@ -180,6 +182,7 @@ export default function App() {
     else window.history.pushState({}, '', path);
     setRoute(parseRoute(path));
     setError('');
+    setIsFieldEditorOpen(false);
   };
 
   useEffect(() => {
@@ -275,6 +278,15 @@ export default function App() {
     navigate(`/channels/${channel.id}/private_show`);
   };
 
+  const handleChannelFieldsSaved = (updated) => {
+    setChannels((current) => current.map((channel) => channel.id === updated.id ? updated : channel));
+    setPrivateData((current) => current?.channel?.id === updated.id
+      ? { ...current, channel: updated, fields: updated.fields }
+      : current);
+    setIsFieldEditorOpen(false);
+    setNotice('Đã cập nhật field của Channel.');
+  };
+
   if (!authToken) {
     return (
       <div className="login-screen-wrapper">
@@ -358,6 +370,7 @@ export default function App() {
               loading={privateLoading}
               onRefresh={() => loadPrivateData(selectedChannel.id)}
               onOpenKeys={() => navigate(`/channels/${selectedChannel.id}/api_keys`)}
+              onManageFields={() => setIsFieldEditorOpen(true)}
             />
           )}
 
@@ -370,6 +383,12 @@ export default function App() {
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreated={handleChannelCreated}
+      />
+      <ChannelFieldsModal
+        channel={selectedChannel}
+        isOpen={isFieldEditorOpen}
+        onClose={() => setIsFieldEditorOpen(false)}
+        onSaved={handleChannelFieldsSaved}
       />
     </div>
   );

@@ -11,7 +11,7 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
-export default function ChannelPrivateView({ channel, data, loading, onRefresh, onOpenKeys }) {
+export default function ChannelPrivateView({ channel, data, loading, onRefresh, onOpenKeys, onManageFields }) {
   const currentChannel = data?.channel || channel;
   const fields = data?.fields || currentChannel?.fields || [];
   const feeds = data?.feeds || [];
@@ -37,6 +37,9 @@ export default function ChannelPrivateView({ channel, data, loading, onRefresh, 
           <span>{latestFeed ? `Nhận dữ liệu gần nhất ${formatDate(latestFeed.received_at)}` : 'Chưa nhận dữ liệu mới'}</span>
         </div>
         <div className="toolbar-actions">
+          <button type="button" className="btn-secondary btn-small" onClick={onManageFields}>
+            <Settings2 size={15} /> Quản lý field
+          </button>
           <button type="button" className="btn-tertiary btn-small" onClick={onRefresh} disabled={loading}>
             <RefreshCw size={15} className={loading ? 'spin' : ''} /> Làm mới
           </button>
@@ -67,7 +70,8 @@ export default function ChannelPrivateView({ channel, data, loading, onRefresh, 
         <div className="empty-state card">
           <Activity size={30} />
           <h3>Channel chưa có field</h3>
-          <p>Hãy cấu hình field trước khi gửi số đo từ ESP32. Bạn có thể cập nhật cấu hình qua API Channel.</p>
+          <p>Hãy cấu hình field trước khi gửi số đo từ ESP32.</p>
+          <button type="button" className="btn-primary" onClick={onManageFields}>Thêm field</button>
         </div>
       ) : (
         <div className="chart-grid">
