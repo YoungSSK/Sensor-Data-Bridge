@@ -44,10 +44,11 @@ export default function ChannelCreateModal({ isOpen, onClose, onCreated }) {
   };
 
   const addField = () => {
-    if (fields.length >= 8) return;
-    const used = new Set(fields.map((field) => field.key));
-    const nextKey = fieldOptions.find((key) => !used.has(key)) || `field${fields.length + 1}`;
-    setFields((current) => [...current, { ...blankField(fields.length + 1), key: nextKey }]);
+    setFields((current) => {
+      const used = new Set(current.map((field) => field.key));
+      const nextKey = fieldOptions.find((key) => !used.has(key));
+      return nextKey ? [...current, { key: nextKey, name: '', unit: '' }] : current;
+    });
   };
 
   const removeField = (index) => {
@@ -145,7 +146,7 @@ export default function ChannelCreateModal({ isOpen, onClose, onCreated }) {
           <div className="field-editor-heading">
             <div>
               <h3>Field dữ liệu</h3>
-              <p>Mỗi Channel hỗ trợ tối đa 8 field, từ field1 đến field8.</p>
+              <p>Mỗi Channel hỗ trợ tối đa 8 field; số field được tạo tự động.</p>
             </div>
             <button type="button" className="btn-secondary btn-small" onClick={addField} disabled={fields.length >= 8}>
               <Plus size={15} /> Thêm field
@@ -156,17 +157,8 @@ export default function ChannelCreateModal({ isOpen, onClose, onCreated }) {
             {fields.map((field, index) => (
               <div className="field-editor-row" key={`${field.key}-${index}`}>
                 <div className="field-key-control">
-                  <label htmlFor={`field-key-${index}`}>Key</label>
-                  <select
-                    id={`field-key-${index}`}
-                    className="input-control"
-                    value={field.key}
-                    onChange={(event) => updateField(index, 'key', event.target.value)}
-                  >
-                    {fieldOptions.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <span className="field-control-label">Field</span>
+                  <span className="field-key-display">{field.key}</span>
                 </div>
                 <div className="field-name-control">
                   <label htmlFor={`field-name-${index}`}>Tên hiển thị</label>
