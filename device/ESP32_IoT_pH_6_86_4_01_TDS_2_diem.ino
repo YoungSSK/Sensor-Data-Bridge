@@ -163,15 +163,15 @@ float calculateTDS(float voltage, float temperatureC) {
       fabsf(TDS_VOLT_SALINE - TDS_VOLT_RO) < 0.001f) {
     return NAN;
   }
-  // Bu nhiet gan dung ve 25 C. De mac dinh 25 C neu dau DS18B20 do dat.
-  // Hai moc dien ap TDS duoc gia dinh la do tai 25 C; neu khong phai,
-  // can do lai trong dung dich chuan co nhiet do xac dinh.
+  // Bù nhiệt gần đúng về 25 °C. Để mặc định 25 °C nếu đầu DS18B20 đo đất.
+  // Hai mốc điện áp TDS được giả định là đo tại 25 °C; nếu không phải,
+  // cần đo lại trong dung dịch chuẩn có nhiệt độ xác định.
   const float coefficient = 1.0f + 0.02f * (temperatureC - 25.0f);
   if (coefficient <= 0.0f) return NAN;
   const float voltage25 = voltage / coefficient;
 
-  // Noi suy 2 diem: (0.142V,58.5ppm), (1.267V,473.4ppm).
-  // Ngoai khoang hai moc, day la NGOAI SUY va ket qua khong chac chan.
+  // Nội suy 2 điểm: (0.142V, 58.5ppm), (1.267V, 473.4ppm).
+  // Ngoài khoảng hai mốc, đây là NGOẠI SUY và kết quả không chắc chắn.
   const float ppm = TDS_PPM_RO +
                     (voltage25 - TDS_VOLT_RO) *
                     (TDS_PPM_SALINE - TDS_PPM_RO) /
@@ -184,7 +184,7 @@ void connectWiFi() {
   }
 
   Serial.println();
-  Serial.println("Dang ket noi Wi-Fi...");
+  Serial.println("Đang kết nối Wi-Fi...");
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -199,14 +199,14 @@ void connectWiFi() {
 
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println();
-    Serial.println("Wi-Fi ket noi thanh cong!");
+    Serial.println("Wi-Fi kết nối thành công!");
     Serial.print("IP ESP32: ");
     Serial.println(WiFi.localIP());
     Serial.print("RSSI: ");
     Serial.println(WiFi.RSSI());
   } else {
     Serial.println();
-    Serial.println("Khong the ket noi Wi-Fi!");
+    Serial.println("Không thể kết nối Wi-Fi!");
   }
 }
 void appendField(String& body, const char* key, const String& value) {
@@ -229,12 +229,12 @@ void uploadToBackend(
   float tdsPpm
 ) {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Wi-Fi mat ket noi, dang thu ket noi lai...");
+    Serial.println("Wi-Fi mất kết nối, đang thử kết nối lại...");
     connectWiFi();
   }
 
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Khong gui duoc du lieu!");
+    Serial.println("Không gửi được dữ liệu!");
     return;
   }
 
@@ -257,7 +257,7 @@ void uploadToBackend(
 
   HTTPClient http;
   if (!http.begin(client, FEED_URL)) {
-    Serial.println("BACKEND: Khong khoi tao duoc HTTPS.");
+    Serial.println("BACKEND: Không khởi tạo được HTTPS.");
     return;
   }
   http.setTimeout(60000);
@@ -266,11 +266,11 @@ void uploadToBackend(
 
   const int response = http.POST(body);
   if (response == HTTP_CODE_CREATED) {
-    Serial.println("BACKEND: GUI DU LIEU THANH CONG!");
+    Serial.println("BACKEND: GỬI DỮ LIỆU THÀNH CÔNG!");
   } else if (response > 0) {
     Serial.printf("BACKEND: HTTP %d: %s\n", response, http.getString().c_str());
   } else {
-    Serial.printf("BACKEND: LOI KET NOI HTTPS: %s\n",
+    Serial.printf("BACKEND: LỖI KẾT NỐI HTTPS: %s\n",
                   http.errorToString(response).c_str());
   }
   http.end();
@@ -302,13 +302,13 @@ void setup() {
   Serial.printf("Số cảm biến DS18B20 tìm thấy: %d\n", ds18b20.getDeviceCount());
   Serial.println("Đã xác nhận: DHT22 và DS18B20 có điện trở kéo lên trên module.");
   Serial.println("Jumper: V-3.3V; pH: nguồn 5V riêng + chia áp 10k/10k.");
-  Serial.println("pH: DA HIEU CHUAN 2 DIEM (6.86 / 4.01).");
-  Serial.printf("pH PO: %.3f V tai pH 6.86 | %.3f V tai pH 4.01\n",
+  Serial.println("pH: ĐÃ HIỆU CHUẨN 2 ĐIỂM (6.86 / 4.01).");
+  Serial.printf("pH PO: %.3f V tại pH 6.86 | %.3f V tại pH 4.01\n",
                 PH_VOLT_AT_6_86, PH_VOLT_AT_4_01);
-  Serial.println("HD-38: chua hieu chuan do am dat.");
-  Serial.println("TDS: quy doi theo 2 diem tham chieu; chua xac minh dung dich chuan.");
+  Serial.println("HD-38: Chưa hiệu chuẩn độ ẩm đất.");
+  Serial.println("TDS: Quy đổi theo 2 điểm tham chiếu; chưa xác minh dung dịch chuẩn.");
 
-  // Ket noi Wi-Fi
+  // Kết nối Wi-Fi
   connectWiFi();
 
   Serial.println("Backend: sensor-data-bridge-backend.onrender.com");
@@ -346,7 +346,7 @@ void loop() {
 
   Serial.print("1. DHT22     | ");
   if (airOK) {
-    Serial.printf("Nhiệt độ không khí: %.1f C | Độ ẩm không khí: %.1f %%\n",
+    Serial.printf("Nhiệt độ không khí: %.1f °C | Độ ẩm không khí: %.1f %%\n",
                   air.temperature, air.humidity);
   } else {
     Serial.print("LỖI: ");
@@ -355,7 +355,7 @@ void loop() {
 
   Serial.print("2. DS18B20   | ");
   if (probeOK) {
-    Serial.printf("Nhiệt độ đầu dò: %.2f C\n", probeC);
+    Serial.printf("Nhiệt độ đầu dò: %.2f °C\n", probeC);
   } else {
     Serial.println("LỖI: Không nhận được DS18B20. Kiểm tra dây DATA, nguồn, GND và mạch chuyển.");
   }
@@ -371,33 +371,33 @@ void loop() {
   Serial.printf("4. pH        | ADC: %u | Điện áp GPIO35: %.3f V | PO: %.3f V",
                 ph.raw, ph.pinVoltage, phModuleVoltage);
   if (isnan(phValue)) {
-    Serial.println(" | pH: LOI TINH TOAN / CAN KIEM TRA HIEU CHUAN");
+    Serial.println(" | pH: LỖI TÍNH TOÁN / CẦN KIỂM TRA HIỆU CHUẨN");
   } else {
-    Serial.printf(" | pH: %.2f (DA HIEU CHUAN 6.86/4.01) | Môi trường: %s\n",
+    Serial.printf(" | pH: %.2f (ĐÃ HIỆU CHUẨN 6.86/4.01) | Môi trường: %s\n",
                   phValue, getPHEnvironment(phValue));
     if (phModuleVoltage < PH_VOLT_AT_6_86 ||
         phModuleVoltage > PH_VOLT_AT_4_01) {
-      Serial.println("   Luu y pH: dien ap nam NGOAI khoang 2 moc hieu chuan.");
+      Serial.println("   Lưu ý pH: Điện áp nằm NGOÀI khoảng 2 mốc hiệu chuẩn.");
     }
   }
 
   Serial.printf("5. TDS       | ADC: %u | Điện áp: %.3f V", tds.raw, tds.pinVoltage);
   if (isfinite(tdsPpm)) {
     Serial.printf(" | %.1f ppm (%s)\n", tdsPpm,
-                  TDS_REFERENCE_VERIFIED ? "2 diem da doi chieu chuan"
-                                         : "NOI SUY 2 DIEM, CHUA KIEM CHUNG CHUAN");
+                  TDS_REFERENCE_VERIFIED ? "2 điểm đã đối chiếu chuẩn"
+                                         : "NỘI SUY 2 ĐIỂM, CHƯA KIỂM CHỨNG CHUẨN");
   } else {
-    Serial.println(" | LOI TINH TDS");
+    Serial.println(" | LỖI TÍNH TDS");
   }
-  Serial.printf("   Bù nhiệt TDS: %.1f C (%s)\n", tdsTemperature,
+  Serial.printf("   Bù nhiệt TDS: %.1f °C (%s)\n", tdsTemperature,
                 TDS_USE_DS18B20_TEMPERATURE ? "DS18B20 nếu hợp lệ" : "Mặc định");
   const float tdsVoltage25 = tds.pinVoltage /
                               (1.0f + 0.02f * (tdsTemperature - 25.0f));
   if (tdsVoltage25 < TDS_VOLT_RO || tdsVoltage25 > TDS_VOLT_SALINE) {
-    Serial.println("   Luu y TDS: ngoai khoang 0.142-1.267V, ket qua la NGOAI SUY.");
+    Serial.println("   Lưu ý TDS: Ngoài khoảng 0.142-1.267V, kết quả là NGOẠI SUY.");
   }
   if (tds.raw == 0 && tds.pinVoltage >= 0.05f) {
-    Serial.println("   CANH BAO TDS: ADC=0 nhung dien ap mV >0; kiem tra ADC va do dong ho.");
+    Serial.println("   CẢNH BÁO TDS: ADC=0 nhưng điện áp mV >0; kiểm tra ADC và đo đồng hồ.");
   }
 
   if (soil.raw >= 4080 || ph.raw >= 4080 || tds.raw >= 4080) {
@@ -409,7 +409,7 @@ void loop() {
   Serial.println("----------------------------------------------------");
 
   delay(READ_INTERVAL_MS);
-  // =============== GUI DU LIEU LEN BACKEND ===============
+  // =============== GỬI DỮ LIỆU LÊN BACKEND ===============
 
   if (lastBackendUpload == 0 ||
       millis() - lastBackendUpload >= BACKEND_INTERVAL_MS) {
