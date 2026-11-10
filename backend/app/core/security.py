@@ -2,6 +2,7 @@ from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
+import string
 from typing import Any, Dict, Optional
 from cryptography.fernet import Fernet, InvalidToken
 import jwt
@@ -49,11 +50,12 @@ def generate_device_token(prefix: str = "sdb_dev_") -> tuple[str, str, str]:
 
 
 def generate_channel_api_key(key_type: str) -> tuple[str, str, str]:
-    """Generate a channel-scoped API key and return raw value, hash and display prefix."""
+    """Generate a 16-character channel-scoped API key and return raw value, hash and display prefix."""
     if key_type not in {"read", "write"}:
         raise ValueError("key_type must be 'read' or 'write'")
-    raw_token = f"sdb_{key_type}_{secrets.token_urlsafe(32)}"
-    return raw_token, hash_token(raw_token), raw_token[:20]
+    alphabet = string.ascii_letters + string.digits
+    raw_token = "".join(secrets.choice(alphabet) for _ in range(16))
+    return raw_token, hash_token(raw_token), f"{raw_token[:6]}..."
 
 
 def _channel_api_key_cipher() -> Fernet:

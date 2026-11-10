@@ -1,13 +1,10 @@
 import React from 'react';
 import { Activity, ArrowRight, Database, Plus, RadioTower } from 'lucide-react';
+import { formatDate as formatUtcDate } from '../utils/date';
 
 const formatDate = (value) => {
   if (!value) return 'Chưa có dữ liệu';
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
+  return formatUtcDate(value, { includeDate: true, dateStyle: 'medium' });
 };
 
 export default function ChannelsPage({ channels, loading, onOpenCreate, onOpenChannel }) {

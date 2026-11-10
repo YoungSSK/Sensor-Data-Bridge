@@ -8,6 +8,7 @@ import {
   RadioTower,
   RefreshCw,
   Settings,
+  Table,
 } from 'lucide-react';
 import {
   clearAuthToken,
@@ -22,22 +23,24 @@ import LoginView from './components/LoginView';
 import ChannelCreateModal from './components/ChannelCreateModal';
 import ChannelsPage from './components/ChannelsPage';
 import ChannelPrivateView from './components/ChannelPrivateView';
+import ChannelFeedsPage from './components/ChannelFeedsPage';
 import ChannelApiKeysView from './components/ChannelApiKeysView';
 import ChannelFieldsModal from './components/ChannelFieldsModal';
 
-const parseRoute = (path = window.location.pathname) => {
-  const match = path.match(/^\/channels\/(\d+)\/(private_show|api_keys)\/?$/);
-  if (match) return { kind: 'channel', channelId: Number(match[1]), tab: match[2] };
+const parseRoute = (fullPath = window.location.pathname + window.location.search) => {
+  const [pathname, search] = fullPath.split('?');
+  const match = pathname.match(/^\/channels\/(\d+)\/(private_show|feeds|api_keys)\/?$/);
+  const searchParams = new URLSearchParams(search || '');
+  const fieldKey = searchParams.get('field') || 'all';
+  if (match) return { kind: 'channel', channelId: Number(match[1]), tab: match[2], fieldKey };
   return { kind: 'channels' };
 };
 
+import { formatDate as formatUtcDate } from './utils/date';
+
 const formatDate = (value) => {
   if (!value) return 'Chưa có dữ liệu';
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
+  return formatUtcDate(value, { includeDate: true, dateStyle: 'medium' });
 };
 
 function Brand() {
@@ -137,6 +140,9 @@ function AppHeader({ route, channel, health, onNavigate, onCreate, onRefresh }) 
           <>
             <button type="button" className={`tab-button ${route.tab === 'private_show' ? 'active' : ''}`} onClick={() => onNavigate(`/channels/${channel.id}/private_show`)}>
               <LineChart size={16} /> Private View
+            </button>
+            <button type="button" className={`tab-button ${route.tab === 'feeds' ? 'active' : ''}`} onClick={() => onNavigate(`/channels/${channel.id}/feeds`)}>
+              <Table size={16} /> Lịch sử dữ liệu
             </button>
             <button type="button" className={`tab-button ${route.tab === 'api_keys' ? 'active' : ''}`} onClick={() => onNavigate(`/channels/${channel.id}/api_keys`)}>
               <KeyRound size={16} /> API Keys
@@ -370,8 +376,13 @@ export default function App() {
               loading={privateLoading}
               onRefresh={() => loadPrivateData(selectedChannel.id)}
               onOpenKeys={() => navigate(`/channels/${selectedChannel.id}/api_keys`)}
+              onOpenFeeds={(fKey) => navigate(`/channels/${selectedChannel.id}/feeds${fKey ? `?field=${fKey}` : ''}`)}
               onManageFields={() => setIsFieldEditorOpen(true)}
             />
+          )}
+
+          {route.kind === 'channel' && selectedChannel && route.tab === 'feeds' && (
+            <ChannelFeedsPage channel={selectedChannel} initialFieldKey={route.fieldKey} />
           )}
 
           {route.kind === 'channel' && selectedChannel && route.tab === 'api_keys' && (
