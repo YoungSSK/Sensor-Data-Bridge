@@ -30,13 +30,11 @@ async function copyToClipboard(value) {
   if (!copied) throw new Error('Trình duyệt không cho phép sao chép. Hãy kiểm tra quyền clipboard.');
 }
 
+import { formatDate as formatUtcDate } from '../utils/date';
+
 const formatDate = (value) => {
   if (!value) return '—';
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
+  return formatUtcDate(value, { includeDate: true, dateStyle: 'medium' });
 };
 
 function KeyTable({ keys, onRevoke, visibleSecrets, onCopy, copiedKeyId }) {

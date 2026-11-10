@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -19,6 +19,17 @@ from app.schemas.device_telemetry import (
 )
 
 router = APIRouter()
+
+
+VN_TZ = timezone(timedelta(hours=7))
+
+
+def _to_vietnam_tz(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(VN_TZ)
 
 
 def _get_user_device(device_id: int, current_user: User, db: Session) -> Device:
@@ -183,7 +194,7 @@ def get_device_latest(
         return DeviceLatestResponse(
             device_id=device.id,
             device_code=device.device_code,
-            last_seen_at=device.last_seen_at,
+            last_seen_at=_to_vietnam_tz(device.last_seen_at),
             metrics_revision=device.metrics_revision,
             values={},
             quality={},
@@ -193,8 +204,8 @@ def get_device_latest(
     return DeviceLatestResponse(
         device_id=device.id,
         device_code=device.device_code,
-        last_seen_at=device.last_seen_at,
-        effective_at=latest_record.effective_at,
+        last_seen_at=_to_vietnam_tz(device.last_seen_at),
+        effective_at=_to_vietnam_tz(latest_record.effective_at),
         time_quality=latest_record.time_quality,
         metrics_revision=latest_record.metrics_revision,
         values=latest_record.values_json or {},
@@ -233,9 +244,9 @@ def get_device_telemetry_history(
             TelemetryHistoryItem(
                 id=r.id,
                 message_id=r.message_id,
-                measured_at=r.measured_at,
-                received_at=r.received_at,
-                effective_at=r.effective_at,
+                measured_at=_to_vietnam_tz(r.measured_at),
+                received_at=_to_vietnam_tz(r.received_at),
+                effective_at=_to_vietnam_tz(r.effective_at),
                 time_quality=r.time_quality,
                 metrics_revision=r.metrics_revision,
                 calibration_revision=r.calibration_revision,

@@ -126,6 +126,24 @@ export const getChannelPrivateShow = async (channelId, limit = 100) =>
     'Không thể tải dữ liệu Channel',
   );
 
+export const getChannelFeeds = async (
+  channelId,
+  { page = 1, pageSize = 20, startAt = null, endAt = null, order = 'desc' } = {},
+) => {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+    order,
+  });
+  if (startAt) params.append('start_at', new Date(startAt).toISOString());
+  if (endAt) params.append('end_at', new Date(endAt).toISOString());
+  return channelRequest(
+    `/channels/${channelId}/feeds?${params.toString()}`,
+    {},
+    'Không thể tải lịch sử dữ liệu feeds',
+  );
+};
+
 export const getChannelApiKeys = async (channelId) =>
   channelRequest(`/channels/${channelId}/api_keys`, {}, 'Không thể tải API key');
 
