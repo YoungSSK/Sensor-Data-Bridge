@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Activity } from 'lucide-react';
+import { Activity, ChevronRight } from 'lucide-react';
+import { formatDate, parseUtcDate } from '../utils/date';
 
 const palette = ['#007AFF', '#30A46C', '#AF52DE', '#FF9500', '#5AC8FA', '#FF2D55', '#8E8E93', '#BF5AF2'];
 
@@ -8,20 +9,11 @@ const formatValue = (value) => {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(Number(value));
 };
 
-const formatDate = (value, includeDate = false) => {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    ...(includeDate ? { dateStyle: 'short' } : {}),
-    timeStyle: 'short',
-  }).format(new Date(value));
-};
-
-export default function ChannelChart({ field, feeds = [], colorIndex = 0 }) {
+export default function ChannelChart({ field, feeds = [], colorIndex = 0, onViewHistory }) {
   const chart = useMemo(() => {
     const points = feeds
       .map((feed) => ({
-        timestamp: new Date(feed.received_at).getTime(),
+        timestamp: parseUtcDate(feed.received_at)?.getTime() || 0,
         receivedAt: feed.received_at,
         value: feed.values?.[field.key],
       }))
@@ -51,10 +43,19 @@ export default function ChannelChart({ field, feeds = [], colorIndex = 0 }) {
   const color = palette[colorIndex % palette.length];
 
   return (
-    <article className="chart-card card">
+    <article
+      className={`chart-card card ${onViewHistory ? 'interactive-card' : ''}`}
+      onClick={() => onViewHistory && onViewHistory(field.key)}
+      title={onViewHistory ? `Nhấp để xem lịch sử đo chi tiết của ${field.name}` : undefined}
+    >
       <div className="chart-card-heading">
         <div>
-          <h3>{field.name}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <h3>{field.name}</h3>
+            {onViewHistory && (
+              <ChevronRight size={16} className="card-navigate-arrow" />
+            )}
+          </div>
           <span className="chart-field-meta">{field.key}{field.unit ? ` · ${field.unit}` : ''}</span>
         </div>
         <div className="chart-latest-value" style={{ color }}>
@@ -94,9 +95,11 @@ export default function ChannelChart({ field, feeds = [], colorIndex = 0 }) {
           </div>
           <div className="chart-card-footer">
             <span>{chart.points.length} điểm đo hợp lệ</span>
-            <span>Cập nhật {formatDate(chart.latest.receivedAt, true)}</span>
+            {chart.latest && (
+              <span>Cập nhật {formatDate(chart.latest.receivedAt, true)}</span>
+            )}
           </div>
-          <details className="chart-data-details">
+          <details className="chart-data-details" onClick={(e) => e.stopPropagation()}>
             <summary>Xem bảng dữ liệu</summary>
             <div className="chart-table-wrap">
               <table>
@@ -104,7 +107,7 @@ export default function ChannelChart({ field, feeds = [], colorIndex = 0 }) {
                   <tr><th>Thời gian</th><th>Giá trị</th></tr>
                 </thead>
                 <tbody>
-                  {[...chart.points].reverse().slice(0, 20).map((point) => (
+                  {[...chart.points].reverse().slice(0, 5).map((point) => (
                     <tr key={`${point.timestamp}-${point.value}`}>
                       <td>{formatDate(point.receivedAt, true)}</td>
                       <td className="numeric">{formatValue(point.value)}{field.unit ? ` ${field.unit}` : ''}</td>

@@ -1,17 +1,14 @@
 import React from 'react';
-import { Activity, Clock3, Database, RefreshCw, Settings2 } from 'lucide-react';
+import { Activity, Clock3, Database, RefreshCw, Settings2, Table } from 'lucide-react';
 import ChannelChart from './ChannelChart';
+import { formatDate as formatUtcDate } from '../utils/date';
 
 const formatDate = (value) => {
   if (!value) return 'Chưa có dữ liệu';
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
+  return formatUtcDate(value, { includeDate: true, dateStyle: 'medium' });
 };
 
-export default function ChannelPrivateView({ channel, data, loading, onRefresh, onOpenKeys, onManageFields }) {
+export default function ChannelPrivateView({ channel, data, loading, onRefresh, onOpenKeys, onOpenFeeds, onManageFields }) {
   const currentChannel = data?.channel || channel;
   const fields = data?.fields || currentChannel?.fields || [];
   const feeds = data?.feeds || [];
@@ -37,6 +34,9 @@ export default function ChannelPrivateView({ channel, data, loading, onRefresh, 
           <span>{latestFeed ? `Nhận dữ liệu gần nhất ${formatDate(latestFeed.received_at)}` : 'Chưa nhận dữ liệu mới'}</span>
         </div>
         <div className="toolbar-actions">
+          <button type="button" className="btn-secondary btn-small" onClick={onOpenFeeds}>
+            <Table size={15} /> Lịch sử dữ liệu
+          </button>
           <button type="button" className="btn-secondary btn-small" onClick={onManageFields}>
             <Settings2 size={15} /> Quản lý field
           </button>
@@ -76,7 +76,13 @@ export default function ChannelPrivateView({ channel, data, loading, onRefresh, 
       ) : (
         <div className="chart-grid">
           {fields.map((field, index) => (
-            <ChannelChart key={field.id || field.key} field={field} feeds={feeds} colorIndex={index} />
+            <ChannelChart
+              key={field.id || field.key}
+              field={field}
+              feeds={feeds}
+              colorIndex={index}
+              onViewHistory={onOpenFeeds}
+            />
           ))}
         </div>
       )}

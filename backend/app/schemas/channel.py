@@ -1,5 +1,5 @@
 import math
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
@@ -93,15 +93,24 @@ class ApiKeyResponse(BaseModel):
 
     @classmethod
     def from_model(cls, api_key: Any, raw_key: Optional[str] = None) -> "ApiKeyResponse":
+        vn_tz = timezone(timedelta(hours=7))
+
+        def to_vn(dt: Optional[datetime]) -> Optional[datetime]:
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(vn_tz)
+
         return cls(
             id=api_key.id,
             channel_id=api_key.channel_id,
             type=api_key.key_type,
             name=api_key.name,
             key_prefix=api_key.key_prefix,
-            created_at=api_key.created_at,
-            last_used_at=api_key.last_used_at,
-            revoked_at=api_key.revoked_at,
+            created_at=to_vn(api_key.created_at),
+            last_used_at=to_vn(api_key.last_used_at),
+            revoked_at=to_vn(api_key.revoked_at),
             key=raw_key,
             raw_key=raw_key,
         )
@@ -133,6 +142,9 @@ class ChannelFeedResponse(BaseModel):
 class ChannelFeedListResponse(BaseModel):
     channel_id: int
     total: int
+    page: int = 1
+    page_size: int = 100
+    total_pages: int = 1
     feeds: List[ChannelFeedResponse]
 
 

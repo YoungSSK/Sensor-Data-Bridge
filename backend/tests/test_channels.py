@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Iterator
 
 import pytest
@@ -93,7 +94,8 @@ async def test_channel_api_key_feed_and_private_show_flow(test_db_session):
         assert read_key_res.status_code == 201
         write_key = write_key_res.json()["raw_key"]
         read_key = read_key_res.json()["raw_key"]
-        assert write_key.startswith("sdb_write_")
+        assert len(write_key) == 16
+        assert len(read_key) == 16
         assert write_key != read_key
 
         ingest = await ac.post(
@@ -227,3 +229,118 @@ async def test_replace_fields_after_channel_creation_preserves_feed_history(test
             headers=ingest_headers,
             json={"field3": 45},
         )).status_code == 201
+
+
+@pytest.mark.anyio
+async def test_channel_feeds_pagination_and_filtering(test_db_session):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        owner = await ac.post(
+            "/api/v1/auth/register",
+            json={"email": "filter-owner@example.com", "password": "strong-password"},
+        )
+        owner_headers = {"Authorization": f"Bearer {owner.json()['access_token']}"}
+        channel = (await ac.post(
+            "/api/v1/channels",
+            headers=owner_headers,
+            json={"name": "History Test", "fields": [{"key": "field1", "name": "Temp"}]},
+        )).json()
+        channel_id = channel["id"]
+
+        write_key = (await ac.post(
+            f"/api/v1/channels/{channel_id}/api_keys",
+            headers=owner_headers,
+            json={"type": "write"},
+        )).json()["raw_key"]
+        ingest_headers = {"X-API-Key": write_key}
+
+        # Send 5 feeds
+        for val in [20.0, 21.0, 22.0, 23.0, 24.0]:
+            res = await ac.post(
+                f"/api/v1/channels/{channel_id}/feeds",
+                headers=ingest_headers,
+                json={"field1": val},
+            )
+            assert res.status_code == 201
+
+        # Test pagination: page_size=2, page=1
+        p1 = await ac.get(
+            f"/api/v1/channels/{channel_id}/feeds?page=1&page_size=2",
+            headers=owner_headers,
+        )
+        assert p1.status_code == 200
+        data1 = p1.json()
+        assert data1["total"] == 5
+        assert data1["page"] == 1
+        assert data1["page_size"] == 2
+        assert data1["total_pages"] == 3
+        assert len(data1["feeds"]) == 2
+        # Default order is desc: latest is 24.0
+        assert data1["feeds"][0]["values"]["field1"] == 24.0
+
+        # Page 2
+        p2 = await ac.get(
+            f"/api/v1/channels/{channel_id}/feeds?page=2&page_size=2",
+            headers=owner_headers,
+        )
+        assert p2.status_code == 200
+        assert len(p2.json()["feeds"]) == 2
+
+        # Page 3
+        p3 = await ac.get(
+            f"/api/v1/channels/{channel_id}/feeds?page=3&page_size=2",
+            headers=owner_headers,
+        )
+        assert p3.status_code == 200
+        assert len(p3.json()["feeds"]) == 1
+
+        # Test date and time range endpoint
+        read_key = (await ac.post(
+            f"/api/v1/channels/{channel_id}/api_keys",
+            headers=owner_headers,
+            json={"type": "read", "name": "3rd Party Key"},
+        )).json()["raw_key"]
+        read_headers = {"X-API-Key": read_key}
+
+        # Query range covering today
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        range_res = await ac.get(
+            f"/api/v1/channels/{channel_id}/feeds/range?start_date={today_str}&end_date={today_str}&start_time=00:00:00&end_time=23:59:59&tz=UTC",
+            headers=read_headers,
+        )
+        assert range_res.status_code == 200
+        range_data = range_res.json()
+        assert range_data["total"] == 5
+        assert len(range_data["feeds"]) == 5
+
+        # Query with start_date & start_time on list_feeds endpoint
+        list_range = await ac.get(
+            f"/api/v1/channels/{channel_id}/feeds?start_date={today_str}&end_date={today_str}&start_time=00:00&end_time=23:59&tz=UTC",
+            headers=read_headers,
+        )
+        assert list_range.status_code == 200
+        assert list_range.json()["total"] == 5
+
+        # Query future date should return 0 feeds
+        future_res = await ac.get(
+            f"/api/v1/channels/{channel_id}/feeds/range?start_date=2099-01-01&end_date=2099-01-02",
+            headers=read_headers,
+        )
+        assert future_res.status_code == 200
+        assert future_res.json()["total"] == 0
+        assert len(future_res.json()["feeds"]) == 0
+
+        # Invalid date format should return 422
+        bad_date = await ac.get(
+            f"/api/v1/channels/{channel_id}/feeds/range?start_date=invalid-date&end_date=2026-11-10",
+            headers=read_headers,
+        )
+        assert bad_date.status_code == 422
+
+        # Invalid time format should return 422
+        bad_time = await ac.get(
+            f"/api/v1/channels/{channel_id}/feeds/range?start_date={today_str}&end_date={today_str}&start_time=99:99",
+            headers=read_headers,
+        )
+        assert bad_time.status_code == 422
+
+
